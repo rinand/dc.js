@@ -1,5 +1,6 @@
 /*!
- *  dc 2.0.0-dev
+ *  dc 2.0.0-dev - modified for exclude filter @TR
+ *               - modified for show selected only group - true/false at Row Chart
  *  http://dc-js.github.io/dc.js/
  *  Copyright 2012 Nick Zhu and other contributors
  *
@@ -1047,10 +1048,42 @@ dc.baseMixin = function (_chart) {
         } else if (_ === null) {
             resetFilters();
         } else {
+            /**
+             @TR - customize, exclusion with shfit key. 
+            **/
+            if (d3.event !== null && (d3.event.shiftKey || d3.event.ctrlKey))
+            {
+                if (_chart.hasFilter(_))
+                {
+                    removeFilter(_);
+                }
+                else{
+                    if (_chart.hasFilter())
+                    {
+                        addFilter(_);
+                    }
+                    else
+                    {
+                        var groups = _chart.group().all();
+                        for (var i = 0; i < groups.length; i++) {
+                            if (groups[i].key !== _) _filters.push(groups[i].key);
+                        }
+                        if (_filters.length > 1 )
+                        {
+                            applyFilters();
+                            _chart._invokeFilteredListener(_);
+                        }
+                    }
+                }
+
+            }
+            else
+            {
             if (_chart.hasFilter(_))
                 removeFilter(_);
             else
                 addFilter(_);
+            }
         }
 
         if (_root !== null && _chart.hasFilter()) {
@@ -2841,6 +2874,11 @@ in order to repsond to onClick events and trigger filtering of all the within th
 dc.capMixin = function (_chart) {
 
     var _cap = Infinity;
+    /**
+    @TR : add _selectedonly and _key
+    **/
+    var _selectedonly = false; //
+    var _key = "none"; //
 
     var _othersLabel = "Others";
 
@@ -2871,9 +2909,30 @@ dc.capMixin = function (_chart) {
 
     _chart.data(function(group) {
         if (_cap == Infinity) {
-            return _chart._computeOrderedGroups(group.all());
+            if (!_selectedonly)
+                return _chart._computeOrderedGroups(group.all());
+            //<-- TR 
+            if( _key == "none")
+                return _chart._computeOrderedGroups(group.all().filter(function(obj) {return obj.value != 0;}));
+
+            return _chart._computeOrderedGroups(group.all().filter(function(obj) {return obj.value[_key] != 0;}));
+            //TR --->
+        } else if (_cap == -1) {
+            return group;
         } else {
-            var topRows = group.top(_cap); // ordered by crossfilter group order (default value)
+            //<-- TR 
+            var topRows = [];
+            if (_selectedonly){
+                var allRows = group.top(Infinity);
+                if (_key == "none"){
+                    topRows = group.top(_cap).filter(function(obj) {return obj.value != 0;}); 
+                } else {
+                    topRows = group.top(_cap).filter(function(obj) {return obj.value[_key] != 0;});
+                }
+            } else {
+              topRows = group.top(_cap); // ordered by crossfilter group order (default value)
+            }
+            //TR --->
             topRows = _chart._computeOrderedGroups(topRows); // re-order using ordering (default key)
             if (_othersGrouper) return _othersGrouper(topRows);
             return topRows;
@@ -2889,6 +2948,25 @@ dc.capMixin = function (_chart) {
         _cap = _;
         return _chart;
     };
+
+
+   //////////////////////////////////////////////////////////////////////////////
+    /**
+    @ TR 
+    ####.showSelectedGroupOnly(true)
+    Get or set SelectedGroupOnly that can work with cap and other groupper.
+    **/
+    _chart.showSelectedGroupOnly = function (_) {
+        if (!arguments.length) return _selectedonly;
+        _selectedonly = _;
+        return _chart;
+    }; 
+    _chart.selectedGroupBy = function (_) {
+        if (!arguments.length) return _key;
+        _key = _;
+        return _chart;
+    }; 
+    //////////////////////////////////////////////////////////////////////////////
 
     /**
     #### .othersLabel([label])
