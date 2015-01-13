@@ -1,6 +1,7 @@
 /*!
  *  dc 2.0.0-dev - modified for exclude filter @TR
  *               - modified for show selected only group - true/false at Row Chart
+ *               - add for filterexcept. Public funtion for exclude filter.
  *  http://dc-js.github.io/dc.js/
  *  Copyright 2012 Nick Zhu and other contributors
  *
@@ -1017,6 +1018,26 @@ dc.baseMixin = function (_chart) {
         }
     }
 
+     
+    function flipFilter(_){
+       if (_chart.hasFilter())
+        {
+            addFilter(_);
+        }
+        else
+        {
+            var groups = _chart.group().all();
+            for (var i = 0; i < groups.length; i++) {
+                if (groups[i].key !== _) _filters.push(groups[i].key);
+            }
+            if (_filters.length > 1 )
+            {
+                applyFilters();
+                _chart._invokeFilteredListener(_);
+            }
+        }
+    }
+
     _chart.replaceFilter = function (_) {
         _filters = [];
         _chart.filter(_);
@@ -1057,25 +1078,10 @@ dc.baseMixin = function (_chart) {
                 {
                     removeFilter(_);
                 }
-                else{
-                    if (_chart.hasFilter())
-                    {
-                        addFilter(_);
-                    }
-                    else
-                    {
-                        var groups = _chart.group().all();
-                        for (var i = 0; i < groups.length; i++) {
-                            if (groups[i].key !== _) _filters.push(groups[i].key);
-                        }
-                        if (_filters.length > 1 )
-                        {
-                            applyFilters();
-                            _chart._invokeFilteredListener(_);
-                        }
-                    }
+                else
+                {
+                    flipFilter(_);
                 }
-
             }
             else
             {
@@ -1085,6 +1091,26 @@ dc.baseMixin = function (_chart) {
                 addFilter(_);
             }
         }
+
+        if (_root !== null && _chart.hasFilter()) {
+            _chart.turnOnControls();
+        } else {
+            _chart.turnOffControls();
+        }
+
+        return _chart;
+    };
+
+    /**
+    // @TR
+    #### .filterRemove()
+    Exclude one filter associated with this chart. 
+    Fire the same event like ctrl/shift click
+    need to strictly used only when js is loaded. 
+    Otherwise, use ctrl/shift click.
+    **/
+    _chart.filterRemove = function (_) {
+        flipFilter(_);
 
         if (_root !== null && _chart.hasFilter()) {
             _chart.turnOnControls();
