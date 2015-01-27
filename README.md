@@ -1,4 +1,6 @@
+[![Dependency Status](https://gemnasium.com/dc-js/dc.js.svg)](https://gemnasium.com/dc-js/dc.js)
 [![Build Status](https://api.travis-ci.org/dc-js/dc.js.png?branch=master)](http://travis-ci.org/dc-js/dc.js)
+[![Sauce Status](https://saucelabs.com/buildstatus/sclevine)](https://saucelabs.com/u/sclevine)
 [![NPM Status](https://badge.fury.io/js/dc.png)](http://badge.fury.io/js/dc)
 
 dc.js
@@ -8,6 +10,18 @@ Dimensional charting built to work natively with crossfilter rendered using d3.j
 [example page](http://dc-js.github.com/dc.js/) with a quick five minutes how to guide. For a
 detailed [API reference](https://github.com/dc-js/dc.js/blob/master/web/docs/api-1.6.0.md) and
 more please visit the [Wiki](https://github.com/dc-js/dc.js/wiki).
+
+
+CDN location
+--------------------
+```
+http://cdnjs.cloudflare.com/ajax/libs/dc/1.7.0/dc.js
+http://cdnjs.cloudflare.com/ajax/libs/dc/1.7.0/dc.min.js
+http://cdnjs.cloudflare.com/ajax/libs/dc/1.7.0/dc.css
+```
+Please do not use github.io as a CDN unless you need the bleeding-edge features.
+
+[More info on the Wiki.](https://github.com/dc-js/dc.js/wiki#cdn-location)
 
 
 Install with npm
@@ -44,6 +58,18 @@ dc.js$ npm install
 ```
 dc.js$ grunt test
 ```
+
+Developing dc.js
+----------------
+
+### Start the development server
+```
+dc.js$ grunt server
+```
+
+* Jasmine specs are hosted at http://localhost:8888/spec
+* The stock example is at http://localhost:8888/web
+* More examples are at http://localhost:8888/web/examples
 
 License
 --------------------

@@ -1,10 +1,26 @@
 /**
 ## Stack Mixin
-
 Stack Mixin is an mixin that provides cross-chart support of stackability using d3.layout.stack.
 
 **/
 dc.stackMixin = function (_chart) {
+
+    function prepareValues (layer, layerIdx) {
+        var valAccessor = layer.accessor || _chart.valueAccessor();
+        layer.name = String(layer.name || layerIdx);
+        layer.values = layer.group.all().map(function (d, i) {
+            return {
+                x: _chart.keyAccessor()(d, i),
+                y: layer.hidden ? null : valAccessor(d, i),
+                data: d,
+                layer: layer.name,
+                hidden: layer.hidden
+            };
+        });
+
+        layer.values = layer.values.filter(domainFilter());
+        return layer.values;
+    }
 
     var _stackLayout = d3.layout.stack()
         .values(prepareValues);
@@ -14,43 +30,35 @@ dc.stackMixin = function (_chart) {
 
     var _hidableStacks = false;
 
-    function prepareValues(layer, layerIdx) {
-        var valAccessor = layer.accessor || _chart.valueAccessor();
-        layer.name = String(layer.name || layerIdx);
-        layer.values = layer.group.all().map(function(d,i) {
-            return {x: _chart.keyAccessor()(d,i),
-                    y: layer.hidden ? null : valAccessor(d,i),
-                    data: d,
-                    layer: layer.name,
-                    hidden: layer.hidden};
-        });
-
-        layer.values = layer.values.filter(domainFilter());
-        return layer.values;
-    }
-
     function domainFilter() {
-        if (!_chart.x()) return d3.functor(true);
+        if (!_chart.x()) {
+            return d3.functor(true);
+        }
         var xDomain = _chart.x().domain();
         if (_chart.isOrdinal()) {
             // TODO #416
             //var domainSet = d3.set(xDomain);
-            return function(p) {
+            return function () {
                 return true; //domainSet.has(p.x);
             };
         }
-        return function(p) {
+        if (_chart.elasticX()) {
+            return function () { return true; };
+        }
+        return function (p) {
             //return true;
-            return p.x >= xDomain[0] && p.x <= xDomain[xDomain.length-1];
+            return p.x >= xDomain[0] && p.x <= xDomain[xDomain.length - 1];
         };
     }
 
     /**
     #### .stack(group[, name, accessor])
-    Stack a new crossfilter group into this chart with optionally a custom value accessor. All stacks in the same chart will
-    share the same key accessor therefore share the same set of keys. In more concrete words, imagine in a stacked bar chart
-    all bars will be positioned using the same set of keys on the x axis while stacked vertically. If name is specified then
-    it will be used to generate legend label.
+    Stack a new crossfilter group onto this chart with an optional custom value accessor. All stacks
+    in the same chart will share the same key accessor and therefore the same set of keys.
+
+    For example, in a stacked bar chart, the bars of each stack will be positioned using the same set
+    of keys on the x axis, while stacked vertically. If name is specified then it will be used to
+    generate the legend label.
     ```js
     // stack group using default accessor
     chart.stack(valueSumGroup)
@@ -60,26 +68,37 @@ dc.stackMixin = function (_chart) {
 
     **/
     _chart.stack = function (group, name, accessor) {
-        if (!arguments.length) return _stack;
+        if (!arguments.length) {
+            return _stack;
+        }
 
-        if (arguments.length <= 2)
+        if (arguments.length <= 2) {
             accessor = name;
+        }
 
         var layer = {group:group};
-        if (typeof name === 'string') layer.name = name;
-        if (typeof accessor === 'function') layer.accessor = accessor;
+        if (typeof name === 'string') {
+            layer.name = name;
+        }
+        if (typeof accessor === 'function') {
+            layer.accessor = accessor;
+        }
         _stack.push(layer);
 
         return _chart;
     };
 
-    dc.override(_chart,'group', function (g,n,f) {
-        if (!arguments.length) return _chart._group();
+    dc.override(_chart, 'group', function (g, n, f) {
+        if (!arguments.length) {
+            return _chart._group();
+        }
         _stack = [];
         _titles = {};
-        _chart.stack(g,n);
-        if (f) _chart.valueAccessor(f);
-        return _chart._group(g,n);
+        _chart.stack(g, n);
+        if (f) {
+            _chart.valueAccessor(f);
+        }
+        return _chart._group(g, n);
     });
 
     /**
@@ -88,8 +107,10 @@ dc.stackMixin = function (_chart) {
     This does not affect the behavior of hideStack or showStack.
 
     **/
-    _chart.hidableStacks = function(_) {
-        if (!arguments.length) return _hidableStacks;
+    _chart.hidableStacks = function (_) {
+        if (!arguments.length) {
+            return _hidableStacks;
+        }
         _hidableStacks = _;
         return _chart;
     };
@@ -107,7 +128,9 @@ dc.stackMixin = function (_chart) {
     **/
     _chart.hideStack = function (stackName) {
         var layer = findLayerByName(stackName);
-        if (layer) layer.hidden = true;
+        if (layer) {
+            layer.hidden = true;
+        }
         return _chart;
     };
 
@@ -119,7 +142,9 @@ dc.stackMixin = function (_chart) {
     **/
     _chart.showStack = function (stackName) {
         var layer = findLayerByName(stackName);
-        if (layer) layer.hidden = false;
+        if (layer) {
+            layer.hidden = false;
+        }
         return _chart;
     };
 
@@ -145,9 +170,9 @@ dc.stackMixin = function (_chart) {
     };
 
     function flattenStack() {
-        return _chart.data().reduce(function(all,layer) {
+        return _chart.data().reduce(function (all, layer) {
             return all.concat(layer.values);
-        },[]);
+        }, []);
     }
 
     _chart.xAxisMin = function () {
@@ -162,37 +187,52 @@ dc.stackMixin = function (_chart) {
 
     /**
     #### .title([stackName], [titleFunction])
-    Set or get the title function. Chart class will use this function to render svg title (usually interpreted by browser
-    as tooltips) for each child element in the chart, i.e. a slice in a pie chart or a bubble in a bubble chart. Almost
-    every chart supports title function however in grid coordinate chart you need to turn off brush in order to use title
-    otherwise the brush layer will block tooltip trigger.
+    Set or get the title function. Chart class will use this function to render svg title (usually interpreted by
+    browser as tooltips) for each child element in the chart, i.e. a slice in a pie chart or a bubble in a bubble chart.
+    Almost every chart supports title function however in grid coordinate chart you need to turn off brush in order to
+    use title otherwise the brush layer will block tooltip trigger.
 
     If the first argument is a stack name, the title function will get or set the title for that stack. If stackName
     is not provided, the first stack is implied.
     ```js
-    // set a title function on "first stack"
-    chart.title("first stack", function(d) { return d.key + ": " + d.value; });
-    // get a title function from "second stack"
-    var secondTitleFunction = chart.title("second stack");
+    // set a title function on 'first stack'
+    chart.title('first stack', function(d) { return d.key + ': ' + d.value; });
+    // get a title function from 'second stack'
+    var secondTitleFunction = chart.title('second stack');
     );
     ```
     **/
-    dc.override(_chart, "title", function (stackName, titleAccessor) {
-        if (!stackName) return _chart._title();
+    dc.override(_chart, 'title', function (stackName, titleAccessor) {
+        if (!stackName) {
+            return _chart._title();
+        }
 
-        if (typeof stackName === 'function') return _chart._title(stackName);
-        if (stackName == _chart._groupName && typeof titleAccessor === 'function')
+        if (typeof stackName === 'function') {
+            return _chart._title(stackName);
+        }
+        if (stackName === _chart._groupName && typeof titleAccessor === 'function') {
             return _chart._title(titleAccessor);
+        }
 
-        if (typeof titleAccessor !== 'function') return _titles[stackName] || _chart._title();
+        if (typeof titleAccessor !== 'function') {
+            return _titles[stackName] || _chart._title();
+        }
 
         _titles[stackName] = titleAccessor;
 
         return _chart;
     });
 
+    /**
+     #### .stackLayout([layout])
+     Gets or sets the stack layout algorithm, which computes a baseline for each stack and
+     propagates it to the next.  The default is
+     [d3.layout.stack](https://github.com/mbostock/d3/wiki/Stack-Layout#stack).
+     **/
     _chart.stackLayout = function (stack) {
-        if (!arguments.length) return _stackLayout;
+        if (!arguments.length) {
+            return _stackLayout;
+        }
         _stackLayout = stack;
         return _chart;
     };
@@ -201,8 +241,7 @@ dc.stackMixin = function (_chart) {
         return !l.hidden;
     }
 
-    _chart.data(function() {
-        // return _stackLayout(_stack);
+    _chart.data(function () {
         var layers = _stack.filter(visability);
         return layers.length ? _chart.stackLayout()(layers) : [];
     });
@@ -218,7 +257,12 @@ dc.stackMixin = function (_chart) {
 
     _chart.legendables = function () {
         return _stack.map(function (layer, i) {
-            return {chart:_chart, name:layer.name, hidden: layer.hidden || false, color:_chart.getColor.call(layer,layer.values,i)};
+            return {
+                chart:_chart,
+                name:layer.name,
+                hidden: layer.hidden || false,
+                color:_chart.getColor.call(layer, layer.values, i)
+            };
         });
     };
 
@@ -228,11 +272,14 @@ dc.stackMixin = function (_chart) {
     };
 
     _chart.legendToggle = function (d) {
-        if(_hidableStacks) {
-            if (_chart.isLegendableHidden(d)) _chart.showStack(d.name);
-            else _chart.hideStack(d.name);
+        if (_hidableStacks) {
+            if (_chart.isLegendableHidden(d)) {
+                _chart.showStack(d.name);
+            } else {
+                _chart.hideStack(d.name);
+            }
             //_chart.redraw();
-            dc.renderAll(_chart.chartGroup());
+            _chart.renderGroup();
         }
     };
 

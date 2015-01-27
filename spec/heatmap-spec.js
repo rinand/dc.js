@@ -1,10 +1,10 @@
 describe("dc.heatmap", function() {
-    var id, data, chart, chartHeight, chartWidth;
+    var id, data, dimension, group, chart, chartHeight, chartWidth;
 
     beforeEach(function() {
         data = crossfilter(loadColorFixture());
-        var dimension = data.dimension(function (d) { return [+d.colData, +d.rowData]; });
-        var group = dimension.group().reduceSum(function (d) { return +d.colorData; });
+        dimension = data.dimension(function (d) { return [+d.colData, +d.rowData]; });
+        group = dimension.group().reduceSum(function (d) { return +d.colorData; });
 
         chartHeight = 210;
         chartWidth = 210;
@@ -31,7 +31,7 @@ describe("dc.heatmap", function() {
 
     describe('rendering the heatmap', function() {
         beforeEach(function() {
-           chart.render();
+            chart.render();
         });
 
         it('should create svg', function () {
@@ -102,6 +102,24 @@ describe("dc.heatmap", function() {
             expect(xaxisTexts[0][1].textContent).toEqual('2');
         });
 
+        describe('with custom labels', function() {
+            beforeEach(function() {
+                chart.colsLabel(function(x) { return 'col ' + x;})
+                    .rowsLabel(function(x) { return 'row ' + x;})
+                    .redraw();
+            });
+            it('should display the custom labels on the x axis', function() {
+                var xaxisTexts = chart.selectAll(".cols.axis text");
+                expect(xaxisTexts[0][0].textContent).toEqual('col 1');
+                expect(xaxisTexts[0][1].textContent).toEqual('col 2');
+            });
+            it('should display the custom labels on the y axis', function() {
+                var yaxisTexts = chart.selectAll(".rows.axis text");
+                expect(yaxisTexts[0][0].textContent).toEqual('row 1');
+                expect(yaxisTexts[0][1].textContent).toEqual('row 2');
+            });
+        });
+
         describe('box radius', function() {
             it('should default the x', function () {
                 chart.select('rect.heat-box').each(function () {
@@ -131,6 +149,52 @@ describe("dc.heatmap", function() {
                 chart.select('rect.heat-box').each(function () {
                     expect(this.getAttribute('ry')).toBe('7');
                 });
+            });
+        });
+
+    });
+
+    describe('change crossfilter', function () {
+        var data2, dimension2, group2, originalDomain, newDomain;
+
+        var reduceDimensionValues = function(dimension) {
+            return dimension.top(Infinity).reduce(function (p, d) {
+                p.cols.add(d.colData);
+                p.rows.add(d.rowData);
+                return p;
+            }, {cols: d3.set(), rows: d3.set()});
+        };
+
+        beforeEach(function () {
+            data2 = crossfilter(loadColorFixture2());
+            dimension2 = data2.dimension(function (d) { return [+d.colData, +d.rowData]; });
+            group2 = dimension2.group().reduceSum(function (d) { return +d.colorData; });
+            originalDomain = reduceDimensionValues(dimension);
+            newDomain = reduceDimensionValues(dimension2);
+
+            chart.dimension(dimension2).group(group2);
+            chart.render();
+            chart.dimension(dimension).group(group);
+            chart.redraw();
+        });
+
+        it('should have the correct number of columns', function () {
+            chart.selectAll(".box-group").each(function (d) {
+                expect(originalDomain.cols.has(d.key[0])).toBeTruthy();
+            });
+
+            chart.selectAll(".cols.axis text").each(function (d) {
+                expect(originalDomain.cols.has(d)).toBeTruthy();
+            });
+        });
+
+        it('should have the correct number of rows', function () {
+            chart.selectAll(".box-group").each(function (d) {
+                expect(originalDomain.rows.has(d.key[1])).toBeTruthy();
+            });
+
+            chart.selectAll(".rows.axis text").each(function (d) {
+                expect(originalDomain.rows.has(d)).toBeTruthy();
             });
         });
     });

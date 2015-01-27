@@ -3,7 +3,7 @@ describe("dc.legend", function() {
 
     beforeEach(function () {
         var data = crossfilter(loadDateFixture());
-        dateDimension = data.dimension(function(d) { return d3.time.day(d.dd); });
+        dateDimension = data.dimension(function(d) { return d3.time.day.utc(d.dd); });
         dateValueSumGroup = dateDimension.group().reduceSum(function(d) { return d.value; });
         dateIdSumGroup = dateDimension.group().reduceSum(function(d) { return d.id; });
 
@@ -16,7 +16,7 @@ describe("dc.legend", function() {
             .group(dateIdSumGroup, "Id Sum")
             .stack(dateValueSumGroup, "Value Sum")
             .stack(dateValueSumGroup, "Fixed", function () {})
-            .x(d3.time.scale().domain([new Date(2012, 4, 20), new Date(2012, 7, 15)]))
+            .x(d3.time.scale.utc().domain([new Date(2012, 4, 20), new Date(2012, 7, 15)]))
             .legend(dc.legend().x(400).y(10).itemHeight(13).gap(5));
     });
 
@@ -71,6 +71,58 @@ describe("dc.legend", function() {
                 expect(coordsFromTranslate(legendItem(0).attr("transform")).y).toBeWithinDelta(0, 1);
                 expect(coordsFromTranslate(legendItem(1).attr("transform")).y).toBeWithinDelta(0, 1);
                 expect(coordsFromTranslate(legendItem(2).attr("transform")).y).toBeWithinDelta(13, 5);
+            });
+        });
+
+        describe('with .autoItemWidth not called', function () {
+            beforeEach(function () {
+                chart.legend(dc.legend());
+            });
+
+            it('_autoItemWidth should be false', function() {
+                expect(chart.legend().autoItemWidth()).toBe(false);
+            });
+        });
+
+        describe('with .autoItemWidth(false)', function () {
+            beforeEach(function () {
+                chart.legend(dc.legend().autoItemWidth(false));
+            });
+
+            it('_autoItemWidth should be false', function() {
+                expect(chart.legend().autoItemWidth()).toBe(false);
+            });
+        });
+
+        describe('with .autoItemWidth(true)', function () {
+            beforeEach(function () {
+                chart.legend(dc.legend().autoItemWidth(true));
+            });
+            it('_autoItemWidth should be true', function() {
+                expect(chart.legend().autoItemWidth()).toBe(true);
+            });
+        });
+
+        describe('with .horizontal(true) and .autoItemWidth(true)', function () {
+
+            var
+                autoWidthOffset1, fixedWidthOffset1,
+                autoWidthOffset2, fixedWidthOffset2;
+
+            beforeEach(function () {
+                chart.legend(dc.legend().horizontal(true).itemWidth(30).autoItemWidth(false));
+                chart.render();
+                fixedWidthOffset1 = coordsFromTranslate(legendItem(1).attr("transform")).x;
+                fixedWidthOffset2 = coordsFromTranslate(legendItem(2).attr("transform")).x;
+                chart.legend(dc.legend().horizontal(true).itemWidth(30).autoItemWidth(true));
+                chart.render();
+                autoWidthOffset1  = coordsFromTranslate(legendItem(1).attr("transform")).x;
+                autoWidthOffset2  = coordsFromTranslate(legendItem(2).attr("transform")).x;
+            });
+
+            it('autoWidth x offset should be greater than fixedWidth x offset for some legend items', function() {
+                expect(autoWidthOffset1).toBeGreaterThan(fixedWidthOffset1);
+                expect(autoWidthOffset2).toBeGreaterThan(fixedWidthOffset2);
             });
         });
 

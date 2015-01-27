@@ -105,8 +105,8 @@ describe('dc.boxPlot', function() {
         it('should place the whiskers at 1.5x the interquartile range', function() {
             expect(box(1).whiskerLine(0).attr('y1')).toBe('122');
             expect(box(1).whiskerLine(0).attr('y2')).toBe('122');
-            expect(box(1).whiskerLine(1).attr('y1')).toBe('78');
-            expect(box(1).whiskerLine(1).attr('y2')).toBe('78');
+            expect(box(1).whiskerLine(1).attr('y1')).toBeWithinDelta(78);
+            expect(box(1).whiskerLine(1).attr('y2')).toBeWithinDelta(78);
         });
 
         it('should label the whiskers using their calculated values', function() {
@@ -120,7 +120,10 @@ describe('dc.boxPlot', function() {
         });
 
         describe('when a box has no data', function() {
+            var firstBox;
+
             beforeEach(function() {
+                firstBox = chart.select('g.box').node();
                 var otherDimension = data.dimension(function (d) { return d.countrycode; });
                 otherDimension.filter("US");
                 chart.redraw();
@@ -128,6 +131,10 @@ describe('dc.boxPlot', function() {
 
             it('should not attempt to render that box', function() {
                 expect(chart.selectAll('g.box').size()).toBe(1);
+            });
+
+            it('should not animate the removed box into another box', function() {
+                expect(chart.select('g.box').node()).not.toBe(firstBox);
             });
 
             describe("with elasticX enabled", function() {
@@ -166,9 +173,9 @@ describe('dc.boxPlot', function() {
                 box(0).each(function (d) {
                     expect(d3.select(this).classed("selected")).toBeTruthy();
                 });
-             });
+            });
 
-             it('should deselect the boxes not corresponding to the filtered value', function() {
+            it('should deselect the boxes not corresponding to the filtered value', function() {
                 box(1).each(function (d) {
                     expect(d3.select(this).classed("deselected")).toBeTruthy();
                 });

@@ -1,10 +1,11 @@
+
 describe('dc.coordinateGridChart', function() {
     var chart, id;
     var data, dimension, group;
 
     beforeEach(function () {
         data = crossfilter(loadDateFixture());
-        dimension = data.dimension(function(d) { return d3.time.day(d.dd); });
+        dimension = data.dimension(function(d) { return d3.time.day.utc(d.dd); });
         group = dimension.group();
 
         id = "coordinate-grid-chart";
@@ -18,7 +19,7 @@ describe('dc.coordinateGridChart', function() {
             .transitionDuration(0)
             .brushOn(false)
             .margins({ top: 20, bottom: 0, right: 10, left: 0 })
-            .x(d3.time.scale().domain([new Date("2012/5/20"), new Date("2012/8/15")]));
+            .x(d3.time.scale.utc().domain([makeDate(2012, 4, 20), makeDate(2012, 7, 15)]));
     });
 
     describe("rendering", function() {
@@ -75,7 +76,7 @@ describe('dc.coordinateGridChart', function() {
         });
 
         it('should set the x domain to endpoint dates', function () {
-            expect(chart.x().domain()).toEqual([new Date("2012/5/20"), new Date("2012/8/15")]);
+            expect(chart.x().domain()).toEqual([makeDate(2012, 4, 20), makeDate(2012, 7, 15)]);
         });
 
         it('should create the brush', function () {
@@ -102,7 +103,7 @@ describe('dc.coordinateGridChart', function() {
         });
 
         it('should be able to change round', function () {
-            chart.round(d3.time.day.round);
+            chart.round(d3.time.day.utc.round);
             expect(chart.round()).not.toBeNull();
         });
 
@@ -156,9 +157,65 @@ describe('dc.coordinateGridChart', function() {
                 expect(rect.attr("height")).toBe('130');
             });
 
+            it('should translate the clip rect to 0,0', function () {
+                var rect = chart.select("defs #coordinate-grid-chart-clip rect");
+                expect(rect.attr('transform')).toMatchTranslate(0,0);
+            });
+
             it('should add clip path refs to the chart body', function () {
                 chart.selectAll("g.chart-body").each(function () {
                     expect(d3.select(this).attr("clip-path")).toMatchUrl("#coordinate-grid-chart-clip");
+                });
+            });
+
+            describe('setting clipPadding(20)', function () {
+
+                beforeEach(function () {
+                    chart.clipPadding(20);
+                    chart.render();
+                });
+
+                it('should update the clip rect based on the graph size and clipPadding', function () {
+                    var rect = chart.select("defs #coordinate-grid-chart-clip rect");
+                    expect(rect.attr('width')).toBe('530');
+                    expect(rect.attr('height')).toBe('170');
+                });
+
+                it('should translate the clip rect to -20,-20', function () {
+                    var rect = chart.select("defs #coordinate-grid-chart-clip rect");
+                    expect(rect.attr('transform')).toMatchTranslate(-20,-20);
+                });
+
+            });
+
+            describe('with a complex selector', function() {
+                beforeEach(function() {
+                    var sel = appendChartID('coordinate-grid').append('div').attr('class', 'chart');
+                    chart = dc.lineChart("#coordinate-grid .chart")
+                        .width(500)
+                        .height(150)
+                        .dimension(dimension)
+                        .group(group)
+                        .transitionDuration(0)
+                        .brushOn(false)
+                        .margins({ top: 20, bottom: 0, right: 10, left: 0 })
+                        .x(d3.time.scale.utc().domain([makeDate(2012, 4, 20), makeDate(2012, 7, 15)]));
+                    chart.render();
+                });
+                it('should generate a valid clippath id', function() {
+                    var rect = chart.select("defs #coordinate-grid--chart-clip rect");
+                    expect(rect.empty()).toBeFalsy();
+                });
+            });
+
+            describe('redrawing at a different size', function() {
+                beforeEach(function() {
+                    chart.width(300).height(400).redraw();
+                });
+                it('should change the clippath to the new size', function() {
+                    var rect = chart.select("defs #coordinate-grid-chart-clip rect");
+                    expect(rect.attr("width")).toBe('290');
+                    expect(rect.attr("height")).toBe('380');
                 });
             });
         });
@@ -280,7 +337,7 @@ describe('dc.coordinateGridChart', function() {
 
                     describe('with custom tick values', function () {
                         beforeEach(function () {
-                            chart.xAxis().tickValues([new Date("2012/05/21"), new Date("2012/06/20"), new Date("2012/07/01")]);
+                            chart.xAxis().tickValues([makeDate(2012, 4, 21), makeDate(2012, 5, 20), makeDate(2012, 6, 1)]);
                             chart.render();
                         });
 
@@ -292,6 +349,17 @@ describe('dc.coordinateGridChart', function() {
                             expect(nthGridLine(0).attr('x1')).toBeWithinDelta(6, 1);
                             expect(nthGridLine(1).attr('x1')).toBeWithinDelta(175, 1);
                             expect(nthGridLine(2).attr('x1')).toBeWithinDelta(237, 1);
+                        });
+                    });
+
+                    describe('with an ordinal x axis', function() {
+                        beforeEach(function() {
+                            chart.x(d3.scale.ordinal())
+                                .xUnits(dc.units.ordinal)
+                                .render();
+                        });
+                        it('should render without errors', function() {
+                            expect(chart.selectAll('.grid-line.vertical line').size()).toBe(6);
                         });
                     });
                 });
@@ -408,7 +476,7 @@ describe('dc.coordinateGridChart', function() {
             });
 
             it('should shrink the x domain', function () {
-                expect(chart.x().domain()).toEqual([new Date("2012/5/25"), new Date("2012/8/10")]);
+                expect(chart.x().domain()).toEqual([makeDate(2012, 4, 25), makeDate(2012, 7, 10)]);
             });
         });
 
@@ -434,7 +502,7 @@ describe('dc.coordinateGridChart', function() {
         beforeEach(function () {
             chart.render();
             originalUnitCount = chart.xUnitCount();
-            chart.x().domain([new Date(2012, 4, 20), new Date(2012, 6, 15)]);
+            chart.x().domain([makeDate(2012, 4, 20), makeDate(2012, 6, 15)]);
             chart.rescale();
         });
 
@@ -531,7 +599,7 @@ describe('dc.coordinateGridChart', function() {
     });
 
     describe("applying a filter", function () {
-        var filter = [new Date(2012, 5, 20), new Date(2012, 6, 15)];
+        var filter = [makeDate(2012, 5, 20), makeDate(2012, 6, 15)];
         beforeEach(function () {
             chart.brushOn(true);
             chart.render();
@@ -547,7 +615,7 @@ describe('dc.coordinateGridChart', function() {
         beforeEach(function () {
             chart.brushOn(true);
             chart.render();
-            chart.brush().extent([new Date(2012, 5, 20), new Date(2012, 6, 15)]);
+            chart.brush().extent([makeDate(2012, 5, 20), makeDate(2012, 6, 15)]);
             chart.filter(null);
         });
 
@@ -623,7 +691,7 @@ describe('dc.coordinateGridChart', function() {
 
         describe("when chart is zoomed programatically via focus method", function () {
             beforeEach(function () {
-                chart.focus([new Date("2012/6/1"), new Date("2012/6/15")]);
+                chart.focus([makeDate(2012, 5, 1), makeDate(2012, 5, 15)]);
             });
 
             itActsLikeItZoomed(context);
@@ -698,12 +766,12 @@ describe('dc.coordinateGridChart', function() {
                 spyOn(chart, '_enableMouseZoom');
                 chart.mouseZoomable(true);
                 chart.render();
-                chart.brush().extent([new Date(2012, 6, 1), new Date(2012, 6, 15)]);
+                chart.brush().extent([makeDate(2012, 6, 1), makeDate(2012, 6, 15)]);
                 chart.brush().event(chart.root());
             });
 
             it("should disable mouse zooming on brush start, and re-enables it afterwards", function () {
-                chart.brush().extent([new Date("2012/7/1"), new Date("2012/7/15")]);
+                chart.brush().extent([makeDate(2012, 6, 1), makeDate(2012, 6, 15)]);
                 chart.brush().event(chart.root());
                 expect(chart._disableMouseZoom).toHaveBeenCalled();
                 expect(chart._enableMouseZoom).toHaveBeenCalled();
@@ -715,7 +783,7 @@ describe('dc.coordinateGridChart', function() {
                 spyOn(chart, "_enableMouseZoom");
                 chart.mouseZoomable(false);
                 chart.render();
-                chart.brush().extent([new Date(2012, 6, 1), new Date(2012, 6, 15)]);
+                chart.brush().extent([makeDate(2012, 6, 1), makeDate(2012, 6, 15)]);
                 chart.brush().event(chart.root());
             });
 
@@ -740,7 +808,7 @@ describe('dc.coordinateGridChart', function() {
 
     describe("with a range chart", function () {
         var rangeChart;
-        var selectedRange = [new Date(2012, 6, 1), new Date(2012, 6, 15)];
+        var selectedRange = [makeDate(2012, 6, 1), makeDate(2012, 6, 15)];
 
         beforeEach(function () {
             rangeChart = buildRangeChart();
@@ -763,11 +831,9 @@ describe('dc.coordinateGridChart', function() {
             jasmine.clock().tick(100);
 
             expect(chart.x().domain()).toEqual(selectedRange);
-            spyOn(chart, "focus").and.callThrough();
             rangeChart.filter(null);
             jasmine.clock().tick(100);
-            expect(chart.focus).toHaveBeenCalledWith(null);
-            expect(chart.x().domain()).toEqual(rangeChart.xOriginalDomain());
+            expect(rangeChart.x().domain()).toEqual(rangeChart.xOriginalDomain());
         });
 
         it("should update the range chart brush to match zoomed domain of focus chart", function () {
@@ -781,11 +847,11 @@ describe('dc.coordinateGridChart', function() {
         beforeEach(function () {
             chart.zoomOutRestrict(true);
             chart.render();
-            chart.focus([new Date(2012, 8, 20), new Date(2012, 8, 25)]);
+            chart.focus([makeDate(2012, 8, 20), makeDate(2012, 8, 25)]);
         });
 
         it("should not be able to zoom out past its original x domain", function () {
-            chart.focus([new Date(2012, 2, 20), new Date(2012, 9, 15)]);
+            chart.focus([makeDate(2012, 2, 20), makeDate(2012, 9, 15)]);
             expect(chart.x().domain()).toEqual(chart.xOriginalDomain());
         });
 
@@ -795,11 +861,11 @@ describe('dc.coordinateGridChart', function() {
                 chart.rangeChart(rangeChart);
                 chart.render();
                 rangeChart.render();
-                chart.focus([new Date(2012, 8, 20), new Date(2012, 8, 25)]);
+                chart.focus([makeDate(2012, 8, 20), makeDate(2012, 8, 25)]);
             });
 
             it("should not be able to zoom out past its range chart origin x domain", function () {
-                chart.focus([new Date(2012, 2, 20), new Date(2012, 9, 15)]);
+                chart.focus([makeDate(2012, 2, 20), makeDate(2012, 9, 15)]);
                 expect(chart.x().domain()).toEqual(chart.rangeChart().xOriginalDomain());
             });
         });
@@ -809,13 +875,13 @@ describe('dc.coordinateGridChart', function() {
         beforeEach(function () {
             chart.zoomOutRestrict(false);
             chart.render();
-            chart.focus([new Date(2012, 8, 20), new Date(2012, 8, 25)]);
+            chart.focus([makeDate(2012, 8, 20), makeDate(2012, 8, 25)]);
         });
 
         it("should be able to zoom out past its original x domain", function () {
-            chart.focus([new Date(2012, 2, 20), new Date(2012, 9, 15)]);
+            chart.focus([makeDate(2012, 2, 20), makeDate(2012, 9, 15)]);
             chart.render();
-            expect(chart.x().domain()).toEqual([new Date(2012, 2, 20), new Date(2012, 9, 15)]);
+            expect(chart.x().domain()).toEqual([makeDate(2012, 2, 20), makeDate(2012, 9, 15)]);
         });
     });
 
@@ -825,7 +891,7 @@ describe('dc.coordinateGridChart', function() {
         });
 
         describe("when called with a range argument", function () {
-            var focusDomain = [new Date(2012,5,20), new Date(2012,5,30)];
+            var focusDomain = [makeDate(2012,5,20), makeDate(2012,5,30)];
 
             beforeEach(function () {
                 chart.focus(focusDomain);
@@ -838,7 +904,7 @@ describe('dc.coordinateGridChart', function() {
 
         describe("when called with no arguments", function () {
             beforeEach(function () {
-                chart.focus([new Date(2012,5,1), new Date(2012,5,2)]);
+                chart.focus([makeDate(2012,5,1), makeDate(2012,5,2)]);
                 chart.focus();
             });
 
@@ -854,7 +920,7 @@ describe('dc.coordinateGridChart', function() {
         return dc.lineChart("#" + rangeId)
             .dimension(dimension)
             .group(dimension.group().reduceSum(function(d) { return d.id; }))
-            .x(d3.time.scale().domain([new Date("2012/6/20"), new Date("2012/7/15")]));
+            .x(d3.time.scale.utc().domain([makeDate(2012, 5, 20), makeDate(2012, 6, 15)]));
     }
 
     function doubleClick(chart) {

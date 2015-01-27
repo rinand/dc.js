@@ -17,10 +17,11 @@ function loadDateFixture() {
 }
 
 function loadDateFixture2() {
-var fixture = JSON.parse("[" +
-    "{\"value\":\"11\",\"nvalue\":\"-4\",\"countrycode\":\"UK\",\"state\":\"Liverpool\",\"status\":\"T\",\"id\":11,\"region\":\"South\",\"date\":\"2012-05-25T16:20:09Z\"}, " +
-    "{\"value\":\"76\",\"nvalue\":\"-1\",\"countrycode\":\"UK\",\"state\":\"London\",\"status\":\"F\",\"id\":12,\"region\":\"\",\"date\":\"2012-06-10T16:20:39Z\"}" +
-    "]");
+    var fixture = JSON.parse(
+        "[" +
+            "{\"value\":\"11\",\"nvalue\":\"-4\",\"countrycode\":\"UK\",\"state\":\"Liverpool\",\"status\":\"T\",\"id\":11,\"region\":\"South\",\"date\":\"2012-05-25T16:20:09Z\"}, " +
+            "{\"value\":\"76\",\"nvalue\":\"-1\",\"countrycode\":\"UK\",\"state\":\"London\",\"status\":\"F\",\"id\":12,\"region\":\"\",\"date\":\"2012-06-10T16:20:39Z\"}" +
+            "]");
 
     fixture.forEach(dateCleaner);
     return fixture;
@@ -56,6 +57,19 @@ function loadColorFixture() {
         "{\"colData\":\"2\", \"rowData\": \"1\", \"colorData\": \"3\"}," +
         "{\"colData\":\"2\", \"rowData\": \"2\", \"colorData\": \"4\"}," +
         "{\"colData\":\"2\", \"rowData\": \"2\", \"colorData\": \"4\"}" +
+        "]");
+}
+
+function loadColorFixture2() {
+    return JSON.parse("[" +
+        "{\"colData\":\"3\", \"rowData\": \"3\", \"colorData\": \"5\"}," +
+        "{\"colData\":\"3\", \"rowData\": \"4\", \"colorData\": \"5\"}," +
+        "{\"colData\":\"4\", \"rowData\": \"5\", \"colorData\": \"6\"}," +
+        "{\"colData\":\"4\", \"rowData\": \"6\", \"colorData\": \"6\"}," +
+        "{\"colData\":\"5\", \"rowData\": \"3\", \"colorData\": \"7\"}," +
+        "{\"colData\":\"5\", \"rowData\": \"4\", \"colorData\": \"7\"}," +
+        "{\"colData\":\"6\", \"rowData\": \"5\", \"colorData\": \"8\"}," +
+        "{\"colData\":\"6\", \"rowData\": \"6\", \"colorData\": \"8\"}" +
         "]");
 }
 

@@ -24,7 +24,7 @@ describe('dc.numberDisplay', function() {
         countryDimension = data.dimension(function(d) {
             return d.countrycode;
         });
-    countryDimension.filter("CA");
+        countryDimension.filter("CA");
     });
 
     function buildChart(id) {
@@ -57,7 +57,7 @@ describe('dc.numberDisplay', function() {
         it('should have text value in child', function() {
             expect(chart.select("span.number-display").text()).toEqual("38.5");
         });
-        it('redraw', function() {
+        describe('redraw', function() {
             beforeEach(function() {
                 countryDimension.filterAll();
                 chart.redraw();
@@ -65,6 +65,68 @@ describe('dc.numberDisplay', function() {
             });
             it('should update value', function() {
                 expect(chart.select("span.number-display").text()).toEqual("41.8");
+            });
+        });
+        describe('html with one, some and none', function() {
+            beforeEach(function() {
+                chart.html({one:"%number number",none:"no number",some:"%number numbers"});
+                chart.redraw();
+                d3.timer.flush();
+            });
+            it('should use some for some', function() {
+                expect(chart.select("span.number-display").text()).toEqual("38.5 numbers");
+            });
+        });
+        describe('html with one, some and none', function() {
+            beforeEach(function() {
+                chart.html({one:"%number number",none:"no number",some:"%number numbers"});
+                chart.valueAccessor(function(d){return 1;});
+                chart.redraw();
+                d3.timer.flush();
+            });
+            it('should use one for one', function() {
+                expect(chart.select("span.number-display").text()).toEqual("1.00 number");
+            });
+        });
+        describe('html with one, some and none', function() {
+            beforeEach(function() {
+                chart.html({one:"%number number",none:"no number",some:"%number numbers"});
+                chart.valueAccessor(function(d){return 0;});
+                chart.redraw();
+                d3.timer.flush();
+            });
+            it('should use zero for zero', function() {
+                expect(chart.select("span.number-display").text()).toEqual("no number");
+            });
+        });
+        describe('html with just one', function() {
+            beforeEach(function() {
+                chart.html({one:"%number number"});
+                chart.redraw();
+                d3.timer.flush();
+            });
+            it('should use one for showing some', function() {
+                expect(chart.select("span.number-display").text()).toEqual("38.5 number");
+            });
+        });
+        describe('html with just some', function() {
+            beforeEach(function() {
+                chart.html({some:"%number numbers"});
+                chart.redraw();
+                d3.timer.flush();
+            });
+            it('should use some for showing one', function() {
+                expect(chart.select("span.number-display").text()).toEqual("38.5 numbers");
+            });
+        });
+        describe('html with just none', function() {
+            beforeEach(function() {
+                chart.html({});
+                chart.redraw();
+                d3.timer.flush();
+            });
+            it('should just show the number in case of some and one', function() {
+                expect(chart.select("span.number-display").text()).toEqual("38.5");
             });
         });
         afterEach(function() {
@@ -88,17 +150,17 @@ describe('dc.numberDisplay', function() {
     });
     describe('Inline nonspan element' , function() {
         beforeEach(function() {
-            var div = d3.select("body").append("div").attr("id","section");
+            var div = d3.select("body").append("div").attr("id","number-display-test-section");
             div.append("p").html("There are <em id=\"nonspan\"></em> Total Widgets.");
             chart = buildChart("#nonspan");
         });
         it('should have text value in child', function() {
-            expect(d3.select("body").select("#section").html())
+            expect(d3.select("body").select("#number-display-test-section").html())
                 .toMatch(new RegExp('<p>There are <em (?:id="nonspan" class="dc-chart"|class="dc-chart" id="nonspan")><span class="number-display">38.5</span></em> Total Widgets.</p>'));
         });
         afterEach(function() {
             countryDimension.filterAll();
+            d3.select('#number-display-test-section').remove();
         });
     });
 });
-

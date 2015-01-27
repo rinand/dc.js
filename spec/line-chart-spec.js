@@ -4,7 +4,7 @@ describe('dc.lineChart', function() {
 
     beforeEach(function () {
         data = crossfilter(loadDateFixture());
-        dimension = data.dimension(function(d) { return d3.time.day(d.dd); });
+        dimension = data.dimension(function(d) { return d3.time.day.utc(d.dd); });
         group = dimension.group();
 
         id = 'line-chart';
@@ -13,7 +13,7 @@ describe('dc.lineChart', function() {
         chart = dc.lineChart('#' + id);
         chart.dimension(dimension).group(group)
             .width(1100).height(200)
-            .x(d3.time.scale().domain([new Date("2012/01/01"), new Date("2012/12/31")]))
+            .x(d3.time.scale.utc().domain([makeDate(2012, 1, 1), makeDate(2012, 11, 31)]))
             .transitionDuration(0);
     });
 
@@ -35,6 +35,7 @@ describe('dc.lineChart', function() {
         describe('render data markers', function () {
             beforeEach(function () {
                 chart.dotRadius(5)
+                    .brushOn(false)
                     .renderDataPoints({}).render();
 
             });
@@ -44,7 +45,7 @@ describe('dc.lineChart', function() {
                     var dot = d3.select(this);
                     expect(dot.style("fill-opacity")).toBeWithinDelta(0.8);
                     expect(dot.style("stroke-opacity")).toBeWithinDelta(0.8);
-                    expect(dot.attr("r")).toBe(2);
+                    expect(dot.attr("r")).toBe('2');
                 });
             });
 
@@ -54,9 +55,9 @@ describe('dc.lineChart', function() {
                     .render();
                 chart.selectAll("circle.dot").each(function () {
                     var dot = d3.select(this);
-                    expect(dot.attr("fill-opacity")).toBe(1);
-                    expect(dot.attr("stroke-opacity")).toBe(1);
-                    expect(dot.attr("r")).toBe(3);
+                    expect(dot.style("fill-opacity")).toBe('1');
+                    expect(dot.style("stroke-opacity")).toBe('1');
+                    expect(dot.attr("r")).toBe('3');
                 });
             });
 
@@ -64,7 +65,7 @@ describe('dc.lineChart', function() {
                 chart.selectAll("circle.dot").each(function () {
                     var dot = d3.select(this);
                     dot.on("mousemove").call(this);
-                    expect(dot.attr("r")).toBe(5);
+                    expect(dot.attr("r")).toBe('5');
                 });
             });
 
@@ -73,7 +74,7 @@ describe('dc.lineChart', function() {
                     var dot = d3.select(this);
                     dot.on("mousemove").call(this);
                     dot.on("mouseout").call(this);
-                    expect(dot.attr("r")).toBe(3);
+                    expect(dot.attr("r")).toBe('2');
                 });
             });
 
@@ -107,6 +108,18 @@ describe('dc.lineChart', function() {
                         expect(dot.style("stroke-opacity")).toBeWithinDelta(1e-6);
                     });
                 });
+            });
+        });
+
+        describe('title rendering', function () {
+            beforeEach(function () {
+                chart.renderTitle(false);
+                chart.render();
+            });
+
+            it('should not render tooltips when boolean flag is false', function () {
+                expect(chart.select(".sub._0 .dc-tooltip._0 .dot").empty()).toBeTruthy();
+                expect(chart.select(".sub._1 .dc-tooltip._0 .dot").empty()).toBeTruthy();
             });
         });
 
@@ -174,39 +187,48 @@ describe('dc.lineChart', function() {
 
                 describe('when dot is hovered over', function () {
                     describe('for vertical ref lines', function () {
+                        var x;
                         beforeEach(function () {
                             var dot = chart.select('circle.dot');
                             dot.on("mousemove").call(dot[0][0]);
+                            x = dot.attr('cx');
                         });
 
                         it('shows the ref line from the bottom of the graph', function () {
-                            expect(chart.select('path.xRef').attr('d')).toMatchPath("M405 160 L 405 107");
+                            var path = "M" + x + " 160 L " + x + " 107";
+                            expect(chart.select('path.xRef').attr('d')).toMatchPath(path);
                             expect(chart.select('path.xRef').attr("display")).not.toBe("none");
                         });
                     });
 
                     describe('for horizontal ref lines', function () {
                         describe('for a left y-axis chart', function () {
+                            var x;
                             beforeEach(function () {
                                 var dot = chart.select('circle.dot');
                                 dot.on("mousemove").call(dot[0][0]);
+                                x = dot.attr('cx');
                             });
 
                             it('shows the ref line on the left', function () {
-                                expect(chart.select('path.yRef').attr("d")).toMatchPath("M0 107L405 107");
+                                var path = "M0 107 L " + x + " 107";
+                                expect(chart.select('path.yRef').attr("d")).toMatchPath(path);
                                 expect(chart.select('path.yRef').attr("display")).not.toBe("none");
                             });
                         });
 
                         describe('for a right y-axis chart', function () {
+                            var x;
                             beforeEach(function () {
                                 chart.useRightYAxis(true).render();
                                 var dot = chart.select('circle.dot');
                                 dot.on("mousemove").call(dot[0][0]);
+                                x = dot.attr('cx');
                             });
 
                             it('shows the ref line on the right', function () {
-                                expect(chart.select('path.yRef').attr("d")).toMatchPath("M1020 107L405 107");
+                                var path = "M1020 107L" + x + " 107";
+                                expect(chart.select('path.yRef').attr("d")).toMatchPath(path); //"M1020 107L405 107");
                                 expect(chart.select('path.yRef').attr("display")).not.toBe("none");
                             });
                         });
@@ -217,7 +239,7 @@ describe('dc.lineChart', function() {
 
         describe('undefined points', function () {
             beforeEach(function () {
-                chart.defined(function(d) { return d.x.valueOf() != new Date("2012/06/10").getTime(); });
+                chart.defined(function(d) { return d.x.valueOf() != makeDate(2012, 5, 10).getTime(); });
                 chart.brushOn(false).render();
             });
 
@@ -236,11 +258,11 @@ describe('dc.lineChart', function() {
             });
 
             it('should draw the chart line', function () {
-                expect(chart.select("path.line").attr("d")).toMatchPath("M405 107 L444 107L449 0L508 107L533 53L620 53");
+                expect(chart.select("path.line").attr("d")).toMatchPath("M348,107 L390,107 L397,0 L461,107 L488,53 L583,53");
             });
 
             it('should draw the chart area', function () {
-                expect(chart.select("path.area").attr("d")).toMatchPath("M405 107L444 107L449 0L508 107L533 53L620 53L620 160L533 160L508 160L449 160L444 160L405 160Z");
+                expect(chart.select("path.area").attr("d")).toMatchPath("M348,107 L390,107 L397,0 L461,107 L488,53 L583,53 L583,160 L488,160 L461,160 L397,160 L390,160 L348,160Z");
             });
         });
 
@@ -273,7 +295,7 @@ describe('dc.lineChart', function() {
 
                     chart.dimension(dimension)
                         .brushOn(false)
-                        .x(d3.time.scale().domain([new Date("2012/5/20"), new Date("2012/8/15")]))
+                        .x(d3.time.scale.utc().domain([makeDate(2012, 4, 20), makeDate(2012, 7, 15)]))
                         .group(idGroup, "stack 0")
                         .title("stack 0", function (d) { return "stack 0: " + d.value; })
                         .stack(valueGroup, "stack 1")
@@ -431,7 +453,7 @@ describe('dc.lineChart', function() {
                     var negativeGroup = dimension.group().reduceSum(function(d){ return d.nvalue; });
 
                     chart.group(negativeGroup).stack(negativeGroup).stack(negativeGroup);
-                    chart.x(d3.time.scale().domain([new Date("2012/5/20"), new Date("2012/8/15")]));
+                    chart.x(d3.time.scale.utc().domain([makeDate(2012, 4, 20), makeDate(2012, 7, 15)]));
 
                     chart.margins({top: 30, right: 50, bottom: 30, left: 30})
                         .renderArea(true)
@@ -517,11 +539,11 @@ describe('dc.lineChart', function() {
 
         describe('filtering', function () {
             beforeEach(function () {
-                chart.filter([new Date("2012/6/1"), new Date("2012/6/30")]).redraw();
+                chart.filter([makeDate(2012, 5, 1), makeDate(2012, 5, 30)]).redraw();
             });
 
             it('should set the chart filter', function () {
-                expect(chart.filter()).toEqual([new Date("2012/6/1"), new Date("2012/6/30")]);
+                expect(chart.filter()).toEqual([makeDate(2012, 5, 1), makeDate(2012, 5, 30)]);
             });
 
             it('should set the filter printer', function () {
@@ -563,7 +585,7 @@ describe('dc.lineChart', function() {
                 });
 
                 it('should set extent width based on filter set', function () {
-                    expect(chart.select("g.brush rect.extent").attr("width")).toBeWithinDelta(81, 1);
+                    expect(chart.select("g.brush rect.extent").attr("width")).toBeWithinDelta(88, 1);
                 });
 
                 it('should not have an area path', function () {
@@ -575,16 +597,38 @@ describe('dc.lineChart', function() {
                 });
             });
         });
+        describe('changing data', function() {
+            var stateDimension;
+            beforeEach(function() {
+                chart.brushOn(false)
+                    .title(function (d) { return d.value; })
+                    .render();
+                stateDimension = data.dimension(function(d){ return d.state; });
+                stateDimension.filter('CA');
+                chart.redraw();
+            });
+
+            it('should update dot titles', function() {
+                chart.selectAll('g._0 circle.dot').each(function (d) {
+                    expect(d3.select(this).select("title").size()).toBe(1);
+                    expect(+d3.select(this).select("title").text()).toBe(d.data.value);
+                });
+            });
+
+            afterEach(function() {
+                stateDimension.filter(null);
+            });
+        });
     });
     describe('change color', function() {
         beforeEach(function() {
             chart.brushOn(false)
                 .ordinalColors(['#FF0000'])
                 .colorAccessor(function(){ return 0; })
-                .render().redraw();
+                .render();
         });
         it('updates dot colors', function() {
-            expect(chart.select("circle.dot")[0][0].attributes.fill.nodeValue).toMatch(/#FF0000/i);
+            expect(chart.select("circle.dot")[0][0].attributes.fill.value).toMatch(/#FF0000/i);
         });
     });
 });
