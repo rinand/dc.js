@@ -1,5 +1,6 @@
 /*!
- *  dc 2.0.0-dev
+ *  dc 2.0.0-dev - modified for exclude filter @TR
+ *               - modified for show selected only group - true/false at Row Chart
  *  http://dc-js.github.io/dc.js/
  *  Copyright 2012 Nick Zhu and other contributors
  *
@@ -1047,10 +1048,77 @@ dc.baseMixin = function (_chart) {
         } else if (_ === null) {
             resetFilters();
         } else {
+            /**
+             @TR - customize, exclusion with shfit key. 
+            **/
+            if (d3.event !== null && (d3.event.shiftKey || d3.event.ctrlKey))
+            {
+                if (_chart.hasFilter(_))
+                {
+                    removeFilter(_);
+                }
+                else{
+                    if (_chart.hasFilter())
+                    {
+                        addFilter(_);
+                    }
+                    else
+                    {
+                        var groups = _chart.group().all();
+                        for (var i = 0; i < groups.length; i++) {
+                            if (groups[i].key !== _) _filters.push(groups[i].key);
+                        }
+                        if (_filters.length > 1 )
+                        {
+                            applyFilters();
+                            _chart._invokeFilteredListener(_);
+                        }
+                    }
+                }
+
+            }
+            else
+            {
             if (_chart.hasFilter(_))
                 removeFilter(_);
             else
                 addFilter(_);
+            }
+        }
+
+        if (_root !== null && _chart.hasFilter()) {
+            _chart.turnOnControls();
+        } else {
+            _chart.turnOffControls();
+        }
+
+        return _chart;
+    };
+
+    /**
+    // @TR
+    #### .filterRemove()
+    Exclude one filter associated with this chart. 
+    Fire event like ctrl/shift click
+    need to strictly used only when js is loaded. 
+    Otherwise, use ctrl/shift click.
+    **/
+    _chart.filterRemove = function (_) {
+        if (_chart.hasFilter())
+        {
+            addFilter(_);
+        }
+        else
+        {
+            var groups = _chart.group().all();
+            for (var i = 0; i < groups.length; i++) {
+                if (groups[i].key !== _) _filters.push(groups[i].key);
+            }
+            if (_filters.length > 1 )
+            {
+                applyFilters();
+                _chart._invokeFilteredListener(_);
+            }
         }
 
         if (_root !== null && _chart.hasFilter()) {
@@ -2841,6 +2909,11 @@ in order to repsond to onClick events and trigger filtering of all the within th
 dc.capMixin = function (_chart) {
 
     var _cap = Infinity;
+    /**
+    @TR : add _selectedonly and _key
+    **/
+    var _selectedonly = false; //
+    var _key = "none"; //
 
     var _othersLabel = "Others";
 
@@ -2871,9 +2944,30 @@ dc.capMixin = function (_chart) {
 
     _chart.data(function(group) {
         if (_cap == Infinity) {
-            return _chart._computeOrderedGroups(group.all());
+            if (!_selectedonly)
+                return _chart._computeOrderedGroups(group.all());
+            //<-- TR 
+            if( _key == "none")
+                return _chart._computeOrderedGroups(group.all().filter(function(obj) {return obj.value != 0;}));
+
+            return _chart._computeOrderedGroups(group.all().filter(function(obj) {return obj.value[_key] != 0;}));
+            //TR --->
+        } else if (_cap == -1) {
+            return group;
         } else {
-            var topRows = group.top(_cap); // ordered by crossfilter group order (default value)
+            //<-- TR 
+            var topRows = [];
+            if (_selectedonly){
+                var allRows = group.top(Infinity);
+                if (_key == "none"){
+                    topRows = group.top(_cap).filter(function(obj) {return obj.value != 0;}); 
+                } else {
+                    topRows = group.top(_cap).filter(function(obj) {return obj.value[_key] != 0;});
+                }
+            } else {
+              topRows = group.top(_cap); // ordered by crossfilter group order (default value)
+            }
+            //TR --->
             topRows = _chart._computeOrderedGroups(topRows); // re-order using ordering (default key)
             if (_othersGrouper) return _othersGrouper(topRows);
             return topRows;
@@ -2889,6 +2983,25 @@ dc.capMixin = function (_chart) {
         _cap = _;
         return _chart;
     };
+
+
+   //////////////////////////////////////////////////////////////////////////////
+    /**
+    @ TR 
+    ####.showSelectedGroupOnly(true)
+    Get or set SelectedGroupOnly that can work with cap and other groupper.
+    **/
+    _chart.showSelectedGroupOnly = function (_) {
+        if (!arguments.length) return _selectedonly;
+        _selectedonly = _;
+        return _chart;
+    }; 
+    _chart.selectedGroupBy = function (_) {
+        if (!arguments.length) return _key;
+        _key = _;
+        return _chart;
+    }; 
+    //////////////////////////////////////////////////////////////////////////////
 
     /**
     #### .othersLabel([label])
@@ -5174,6 +5287,8 @@ var chart1 = dc.geoChoroplethChart("#us-chart");
 var chart2 = dc.compositeChart("#us-chart2", "chartGroupA");
 ```
 
+'''TR ;
+add mouseZoomable(true);
 **/
 dc.geoChoroplethChart = function (parent, chartGroup) {
     var _chart = dc.colorMixin(dc.baseMixin({}));
@@ -5186,6 +5301,14 @@ dc.geoChoroplethChart = function (parent, chartGroup) {
     var _projectionFlag;
 
     var _geoJsons = [];
+    //* TR, added for zoom by default. zoom out till the original.
+    var _mouseZoomable = true,
+        _hasBeenMouseZoomable=true,
+        _zoomOutRestrict = true; 
+    var _projection, _originalscale, _originaltranslate;
+    var _zoom = d3.behavior.zoom().on("zoom", zoomHandler);
+    var _nullZoom = d3.behavior.zoom().on("zoom", null);
+    //**ZL
 
     _chart._doRender = function () {
         _chart.resetSvg();
@@ -5208,6 +5331,8 @@ dc.geoChoroplethChart = function (parent, chartGroup) {
 
             plotData(layerIndex);
         }
+        //TR - zoom;
+        configureMouseZoom();
         _projectionFlag = false;
     };
 
@@ -5319,7 +5444,7 @@ dc.geoChoroplethChart = function (parent, chartGroup) {
                 _chart.svg().selectAll("g." + geoJson(layerIndex).name + " path").attr("d", _geoPath);
             }
         }
-        _projectionFlag = false;
+        _projectionFlag = false; //TR
     };
 
     /**
@@ -5361,10 +5486,75 @@ dc.geoChoroplethChart = function (parent, chartGroup) {
 
     **/
     _chart.projection = function (projection) {
+        _projection = projection;
+        _originalscale = +projection.scale();
+        _originaltranslate = projection.translate() ||[];
         _geoPath.projection(projection);
         _projectionFlag = true;
         return _chart;
     };
+   
+    /** TR
+    add mouseZoomable in GridMixin 
+    Set or get mouse zoom capability flag (default: true). When turned on the chart will be zoomable through mouse wheel
+     . If range selector chart is also attached zooming will also update the range selection brush on associated range
+     selector chart.
+
+    **/
+    _chart.mouseZoomable = function (z) {
+        if (!arguments.length) return _mouseZoomable;
+        _mouseZoomable = z;
+        return _chart;
+    };
+
+    _chart.resetZoom = function () {
+        _projection
+         .translate(_originaltranslate)
+         .scale(_originalscale);
+        _projectionFlag = true;
+    };
+
+    function configureMouseZoom () {
+        if (_mouseZoomable) {
+            _chart._enableMouseZoom();
+        }
+        else if (_hasBeenMouseZoomable) {
+            _chart._disableMouseZoom();
+        }
+    }
+
+    _chart._enableMouseZoom = function () {
+        _hasBeenMouseZoomable = true;
+        _zoom.translate(_projection.translate())
+            .scale(_projection.scale())
+            .scaleExtent([_chart.height()/2, 6* _chart.height()]);
+
+        _chart.root().call(_zoom);
+    };
+
+    _chart._disableMouseZoom = function () {
+        _chart.root().call(_nullZoom);
+    };
+
+    function zoomHandler() { 
+        var scale =  _originalscale;
+        if ( _originalscale < d3.event.scale ) {
+            scale = d3.event.scale;
+        }   
+
+        _projection
+         .translate(d3.event.translate)
+         .scale(scale);
+
+        _chart._invokeZoomedListener();
+
+         _projectionFlag = true;
+        dc.events.trigger(function () {
+            _chart.redrawGroup();
+        }, dc.constants.EVENT_DELAY);
+
+    }
+
 
     /**
     #### .geoJsons()
@@ -5401,6 +5591,7 @@ dc.geoChoroplethChart = function (parent, chartGroup) {
 
         return _chart;
     };
+
 
     return _chart.anchor(parent, chartGroup);
 };
