@@ -526,10 +526,44 @@ dc.baseMixin = function (_chart) {
         } else if (_ === null) {
             resetFilters();
         } else {
-            if (_chart.hasFilter(_))
-                removeFilter(_);
-            else
-                addFilter(_);
+            /**
+            @TR - customize, exclusion with shfit key. 
+            **/
+            if (d3.event !== null && (d3.event.shiftKey || d3.event.ctrlKey))
+             {
+                 if (_chart.hasFilter(_))
+                 {
+                     removeFilter(_);
+                 }
+                 else{
+                     if (_chart.hasFilter())
+                     {
+                         addFilter(_);
+                     }
+                     else
+                     {
+                         var groups = _chart.group().all();
+                         for (var i = 0; i < groups.length; i++) {
+                             if (groups[i].key !== _) _filters.push(groups[i].key);
+                         }
+                         if (_filters.length > 1 )
+                         {
+                             applyFilters();
+                             _chart._invokeFilteredListener(_);
+                         }
+                     }
+                 }
+ 
+             }
+             else
+             {
+
+                if (_chart.hasFilter(_))
+                    removeFilter(_);
+                else
+                    addFilter(_);
+
+            }
         }
 
         if (_root !== null && _chart.hasFilter()) {
