@@ -18,6 +18,13 @@ dc.capMixin = function (_chart) {
 
     var _othersLabel = 'Others';
 
+    /**
+        add _selectedonly and _key
+    **/
+    var _selectedonly = false; //
+    var _key = "none"; //
+
+
     var _othersGrouper = function (topRows) {
         var topRowsSum = d3.sum(topRows, _chart.valueAccessor()),
             allRows = _chart.group().all(),
@@ -48,9 +55,26 @@ dc.capMixin = function (_chart) {
 
     _chart.data(function (group) {
         if (_cap === Infinity) {
-            return _chart._computeOrderedGroups(group.all());
+            if (!_selectedonly) {
+                return _chart._computeOrderedGroups(group.all());
+            } else if( _key == "none") {
+                return _chart._computeOrderedGroups(group.all().filter(function(obj) {return obj.value != 0;}));
+            } else {
+                return _chart._computeOrderedGroups(group.all());
+            }
         } else {
-            var topRows = group.top(_cap); // ordered by crossfilter group order (default value)
+            var topRows = [];
+             if (_selectedonly){
+                var allRows = group.top(Infinity);
+                if (_key == "none"){
+                    topRows = group.top(_cap).filter(function(obj) {return obj.value != 0;}); 
+                } else {
+                    topRows = group.top(_cap).filter(function(obj) {return obj.value[_key] != 0;});
+                }
+            } else {
+               topRows = group.top(_cap); // ordered by crossfilter group order (default value)
+            }
+            
             topRows = _chart._computeOrderedGroups(topRows); // re-order using ordering (default key)
             if (_othersGrouper) {
                 return _othersGrouper(topRows);
@@ -139,6 +163,31 @@ dc.capMixin = function (_chart) {
         _othersGrouper = grouperFunction;
         return _chart;
     };
+
+    //////////////////////////////////////////////////////////////////////////////
+    /**
+    @ TR 
+
+    ####.showSelectedGroupOnly(true)
+
+    Get or set SelectedGroupOnly that will work with/without cap and other groupper.
+
+    **/
+
+    _chart.showSelectedGroupOnly = function (_) {
+        if (!arguments.length) return _selectedonly;
+        _selectedonly = _;
+        return _chart;
+    }; 
+
+    _chart.selectedGroupBy = function (_) {
+        if (!arguments.length) return _key;
+        _key = _;
+        return _chart;
+
+    }; 
+
+    //////////////////////////////////////////////////////////////////////////////
 
     dc.override(_chart, 'onClick', function (d) {
         if (d.others) {
